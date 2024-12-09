@@ -1,0 +1,83 @@
+make Array play nicely with fixed tilt systems and trackers
+#1076 is adding an `Array` class that largely describes a fixed-tilt array. However, the composition logic of `PVSystem: def __init__(arrays,...)` combined with the inheritance logic of `SingleAxisTracker(PVSystem)` makes for an odd combination of `Array` objects within `SingleAxisTrackers`. See, for example, https://github.com/pvlib/pvlib-python/pull/1076#discussion_r539704316. 
+
+In https://github.com/pvlib/pvlib-python/pull/1076#discussion_r539686448 I proposed roughly:
+
+Split the `Array` into `BaseArray`, `FixedTiltArray(BaseArray)`, `SingleAxisTrackingArray(BaseArray)`? Basic idea:
+
+```python
+class FixedTiltArray(BaseArray)
+    """
+    Parameters
+    ----------
+    surface_tilt: float or array-like, default 0
+        Surface tilt angles in decimal degrees.
+        The tilt angle is defined as degrees from horizontal
+        (e.g. surface facing up = 0, surface facing horizon = 90)
+
+    surface_azimuth: float or array-like, default 180
+        Azimuth angle of the module surface.
+        North=0, East=90, South=180, West=270.
+
+    **kwargs
+        Passed to Array. Or copy remainder of Array doc string to be explicit.
+    """
+
+
+# could be in pvsystem.py (module is gradually becoming just the objects) or could be in tracking.py
+class SingleAxisTrackerArray(BaseArray)
+    """
+    Parameters
+    ----------
+    axis_tilt : float, default 0
+        The tilt of the axis of rotation (i.e, the y-axis defined by
+        axis_azimuth) with respect to horizontal, in decimal degrees.
+
+    etc.
+
+    **kwargs
+        Passed to Array. Or copy remainder of Array doc string to be explicit.
+    """
+```
+
+I believe the only major challenge is that the `get_aoi` and `get_irradiance` methods would either need to differ in signature (as they do now, and thus present a challenge to a `PVSystem` wrapper) or in implementation (tracker methods would include a call to `singleaxis`, and thus would be less efficient in some workflows). @wfvining suggests that the consistent signature is more important and I'm inclined to agree.
+
+We'd also deprecate the old `SingleAxisTracking` class.
+
+We should resolve this issue before releasing the new Array code into the wild in 0.9.
+
+
+Hints:
+I like the idea of depreciating the `SingleAxisTracking` class and wrapping tracking functionality more directly into `PVSystem` and `Array`. I don't quite picture yet how it would work on the user side. They can directly create a `SingleAxisTrackerArray` and then pass that to a `PVSystem`? Or create a `FixedTiltArray` and pass that? 
+
+I think we should keep in mind though that when you have a tracking system you are probably very likely going to have a uniform system and a single `Array` per `PVsystem`. So if I am going to create a tracking PVSystem, I am likely going to want to create it straight from a `PVSystem` as the most direct route rather than having to create the array first. (Unless the intent is to depreciate that functionality eventually and push always creating an `Array` first).  In that sense, keeping `SingleAxisTracker` as a `PVSystem` class and just having it create a `SingleAxisTrackingArray` instead of a `Array` may be more user friendly. But I do think there is opportunity to come up with a system to wrap everything together better. 
+
+I also like the simplicity of `Array` and `PVsystem`, and worry about now adding different types of `Array`. 
+
+Just throwing this out there, what if `Array` had a `tracking_model` attribute that right now could be either `fixed` or `single_axis`? Depending on what is passed it sets the appropriate `get_iam` and `get_irradiance` methods, and initiates the appropriate default attributes (`surface_tilt`, `surface_azimuth`, `axis_angle`, `max_angle` etc)? 
+> They can directly create a SingleAxisTrackerArray and then pass that to a PVSystem? Or create a FixedTiltArray and pass that?
+
+Yes.
+
+> I think we should keep in mind though that when you have a tracking system you are probably very likely going to have a uniform system and a single Array per PVsystem. 
+
+True. The main application that I can see for mixing a `SingleAxisTrackerArray` with something else is for modeling systems with a mix of broken and working trackers, so it would look something like:
+
+```python
+other_params = {}  # module_parameters, etc
+PVSystem([
+    Array(surface_tilt=45, surface_azimuth=90, **other_params), 
+    SingleAxisTrackerArray(**other_params)
+])
+```
+
+> So if I am going to create a tracking PVSystem, I am likely going to want to create it straight from a PVSystem as the most direct route rather than having to create the array first. (Unless the intent is to depreciate that functionality eventually and push always creating an Array first). In that sense, keeping SingleAxisTracker as a PVSystem class and just having it create a SingleAxisTrackingArray instead of a Array may be more user friendly. 
+
+We discussed deprecating that functionality but haven't committed to it. 
+
+> Just throwing this out there, what if Array had a tracking_model attribute that right now could be either fixed or single_axis? Depending on what is passed it sets the appropriate get_iam and get_irradiance methods, and initiates the appropriate default attributes (surface_tilt, surface_azimuth, axis_angle, max_angle etc)?
+
+Interesting idea. I could see this working at the `PVSystem` level so that you can retain the ability to create the system with a single function call despite the removal of `SingleAxisTracker`.
+
+Created at: 2021-02-23T18:12:23Z
+Version: 0.8

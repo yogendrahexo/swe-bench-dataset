@@ -1,0 +1,178 @@
+fix keep adding new line on wrong place 
+### Search before asking
+
+- [X] I searched the [issues](https://github.com/sqlfluff/sqlfluff/issues) and found no similar issues.
+
+
+### What Happened
+
+To replicate this issue you can create a file eg. test.template.sql 
+
+```
+{% if true %}
+SELECT 1 + 1
+{%- endif %}
+```
+
+then run:
+```
+sqlfluff fix test.template.sql  
+```
+
+This will give you:
+```
+L:   2 | P:  12 | L009 | Files must end with a trailing newline.
+```
+
+And the result of the file is now:
+```
+{% if true %}
+SELECT 1 + 1
+
+{%- endif %}
+```
+
+If i run it again it will complain on the same issue and the result of the file would be: 
+```
+{% if true %}
+SELECT 1 + 1
+
+
+{%- endif %}
+```
+
+And so on. 
+
+### Expected Behaviour
+
+The expected behavior would be to add the new line at the end of the file, that is after `{%- endif %}` instead of adding the new line at the end of the SQL query - so the result should look like this: 
+
+```
+{% if true %}
+SELECT 1 + 1
+{%- endif %}
+
+```
+
+### Observed Behaviour
+
+Adds a new line to the end of the SQL query instead of in the end of the file. 
+
+### How to reproduce
+
+Already mentioned above (in What Happened section).
+
+### Dialect
+
+snowflake
+
+### Version
+
+sqlfluff, version 0.6.2
+
+### Configuration
+
+[sqlfluff]
+verbose = 1
+dialect = snowflake
+templater = jinja
+exclude_rules = L027,L031,L032,L036,L044,L046,L034
+output_line_length = 121
+sql_file_exts=.sql
+
+[sqlfluff:rules]
+tab_space_size = 4
+max_line_length = 250
+indent_unit = space
+comma_style = trailing
+allow_scalar = True
+single_table_references = consistent
+unquoted_identifiers_policy = aliases
+
+
+[sqlfluff:rules:L010]  # Keywords
+capitalisation_policy = upper
+
+[sqlfluff:rules:L014]
+extended_capitalisation_policy = lower
+
+[sqlfluff:rules:L030]  # function names
+capitalisation_policy = upper
+
+### Are you willing to work on and submit a PR to address the issue?
+
+- [ ] Yes I am willing to submit a PR!
+
+### Code of Conduct
+
+- [X] I agree to follow this project's [Code of Conduct](https://github.com/sqlfluff/sqlfluff/blob/main/CODE_OF_CONDUCT.md)
+
+
+
+Hints:
+> Version
+> sqlfluff, version 0.6.2
+
+Is this correct? If so that is a VERY old version so please upgrade. Though confirmed this is still an issue in latest. But still, going to need to upgrade to get any fix for this.
+> > Version
+> > sqlfluff, version 0.6.2
+> 
+> Is this correct? If so that is a VERY old version so please upgrade. Though confirmed this is still an issue in latest. But still, going to need to upgrade to get any fix for this.
+
+Thanks for your response! I had sqlfluff globally installed with version 0.6.2 but i changed it now to 0.11.0 and still it is the same issue.
+The rule probably needs updating to be "template aware".  A few other rules have required similar updates and may provide useful inspiration for a fix.
+
+```
+src/sqlfluff/rules/L019.py
+140:                    and not last_seg.is_templated
+209:                if last_seg.is_type("comma") and not context.segment.is_templated:
+
+src/sqlfluff/rules/L003.py
+77:        if elem.is_type("whitespace") and elem.is_templated:
+148:                templated_line = elem.is_templated
+
+src/sqlfluff/rules/L010.py
+87:        if context.segment.is_templated:
+```
+I can't reproduce this issue with SQLFluff 0.11.0. This is the terminal output I get:
+```
+(sqlfluff-0.11.0) ➜  /tmp sqlfluff fix test.template.sql
+==== sqlfluff ====
+sqlfluff:               0.11.0 python:                  3.9.1
+implementation:        cpython dialect:             snowflake
+verbosity:                   1 templater:               jinja
+
+==== finding fixable violations ====
+=== [ path: test.template.sql ] ===
+
+== [test.template.sql] FAIL                                                                                                                                                                             
+L:   2 | P:   1 | L003 | Indent expected and not found compared to line #1                                                                                                                              
+==== fixing violations ====
+1 fixable linting violations found
+Are you sure you wish to attempt to fix these? [Y/n] ...
+Attempting fixes...
+Persisting Changes...
+== [test.template.sql] PASS
+Done. Please check your files to confirm.
+All Finished 📜 🎉!
+```
+
+And this is the resulting file. SQLFluff indented line 2 but no newline was added.
+```
+{% if true %}
+    SELECT 1 + 1
+{%- endif %}
+```
+I can @barrywhart but it only works when the final newline in the file doesn't exist.
+
+If on mac you can run something like this to strip the final newline character:
+
+```
+truncate -s -1 test.sql > test2.sql
+```
+
+Then fix `test2.sql` with default config and you'll see it.
+There's a bug in `JinjaTracer` -- if a Jinja block (e.g. `{% endif %}` is the final slice in the file (i. there's no final newline), that slice is missing from the output. This will have to be fixed before we can fix L009, because at present, L009 cannot "see" that `{% endif %}` after the `1`.
+
+Created at: 2022-03-14T19:46:08Z
+Version: 0.1

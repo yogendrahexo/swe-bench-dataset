@@ -1,0 +1,11 @@
+Test files that should fail before fix and pass after:
+pvlib/test/test_singlediode.py::test_pvsyst_recombination_loss[newton-1000-25-expected0-tol0]
+pvlib/test/test_singlediode.py::test_pvsyst_recombination_loss[newton-888-55-expected1-tol1]
+pvlib/test/test_singlediode.py::test_pvsyst_recombination_loss[brentq-1000-25-expected0-tol0]
+pvlib/test/test_singlediode.py::test_pvsyst_recombination_loss[brentq-888-55-expected1-tol1]
+
+Test files that should pass both before and after fix:
+pvlib/test/test_singlediode.py::test_newton_spr_e20_327
+pvlib/test/test_singlediode.py::test_newton_fs_495
+pvlib/test/test_singlediode.py::test_brentq_spr_e20_327
+pvlib/test/test_singlediode.py::test_brentq_fs_495

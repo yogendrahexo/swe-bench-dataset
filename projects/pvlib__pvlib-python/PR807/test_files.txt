@@ -1,0 +1,15 @@
+Test files that should fail before fix and pass after:
+pvlib/test/test_scaling.py::test_latlon_to_xy_zero
+pvlib/test/test_scaling.py::test_latlon_to_xy_single
+pvlib/test/test_scaling.py::test_latlon_to_xy_array
+pvlib/test/test_scaling.py::test_latlon_to_xy_list
+pvlib/test/test_scaling.py::test_compute_wavelet_series
+pvlib/test/test_scaling.py::test_compute_wavelet_series_numindex
+pvlib/test/test_scaling.py::test_compute_wavelet_array
+pvlib/test/test_scaling.py::test_compute_wavelet_array_invalid
+pvlib/test/test_scaling.py::test_wvm_series
+pvlib/test/test_scaling.py::test_wvm_array
+pvlib/test/test_scaling.py::test_wvm_series_xyaslist
+pvlib/test/test_scaling.py::test_wvm_invalid
+
+Test files that should pass both before and after fix:

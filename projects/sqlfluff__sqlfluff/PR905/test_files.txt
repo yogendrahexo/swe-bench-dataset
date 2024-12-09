@@ -1,0 +1,10 @@
+Test files that should fail before fix and pass after:
+test/api/simple_test.py::test__api__fix_string
+
+Test files that should pass both before and after fix:
+test/api/simple_test.py::test__api__lint_string_without_violations
+test/api/simple_test.py::test__api__lint_string
+test/api/simple_test.py::test__api__lint_file
+test/api/simple_test.py::test__api__lint_string_specific
+test/api/simple_test.py::test__api__fix_string_specific
+test/api/simple_test.py::test__api__parse_string

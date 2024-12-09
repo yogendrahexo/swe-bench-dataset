@@ -1,0 +1,7 @@
+Test files that should fail before fix and pass after:
+tests/unittest_decorators.py::test_deprecation_warning_on_cachedproperty
+
+Test files that should pass both before and after fix:
+tests/unittest_decorators.py::TestDeprecationDecorators::test_deprecated_default_argument_values_one_arg
+tests/unittest_decorators.py::TestDeprecationDecorators::test_deprecated_default_argument_values_two_args
+tests/unittest_decorators.py::TestDeprecationDecorators::test_deprecated_default_argument_values_ok

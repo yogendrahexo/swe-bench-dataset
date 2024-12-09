@@ -1,0 +1,146 @@
+ModelChainResult.cell_temperature is not always a pandas.Series 
+For a `ModelChain` configured as below, the `cell_temperature` when running the model chain with a list of data like `ModelChain.run_model([data])` is a tuple with a single number instead of the expected Series
+
+**To Reproduce**
+```python
+import pandas as pd                                                                                                                                                                                                                                           
+from pvlib.location import Location                                                                                                                                                                                                                           
+from pvlib.pvsystem import PVSystem, Array                                                                                                                                                                                                                    
+from pvlib.modelchain import ModelChain                                                                                                                                                                                                                       
+                                                                                                                                                                                                                                                              
+data = pd.DataFrame(                                                                                                                                                                                                                                          
+    {                                                                                                                                                                                                                                                         
+        "ghi": [1100.0, 1101.0],                                                                                                                                                                                                                              
+        "dni": [1000.0, 1001],                                                                                                                                                                                                                                
+        "dhi": [100.0, 100],                                                                                                                                                                                                                                  
+        "temp_air": [25.0, 25],                                                                                                                                                                                                                               
+        "wind_speed": [10.0, 10],                                                                                                                                                                                                                             
+    },                                                                                                                                                                                                                                                        
+    index=pd.DatetimeIndex(                                                                                                                                                                                                                                   
+        [pd.Timestamp("2021-01-20T12:00-05:00"), pd.Timestamp("2021-01-20T12:05-05:00")]                                                                                                                                                                      
+    ),                                                                                                                                                                                                                                                        
+)                                                                                                                                                                                                                                                             
+                                                                                                                                                                                                                                                              
+array_params = {                                                                                                                                                                                                                                              
+    "name": None,                                                                                                                                                                                                                                             
+    "surface_tilt": 20.0,                                                                                                                                                                                                                                     
+    "surface_azimuth": 180.0,                                                                                                                                                                                                                                 
+    "module": "Canadian_Solar_Inc__CS5P_220M",                                                                                                                                                                                                                
+    "albedo": 0.2,                                                                                                                                                                                                                                            
+    "temperature_model_parameters": {                                                                                                                                                                                                                         
+        "u_c": 29.0,                                                                                                                                                                                                                                          
+        "u_v": 0.0,                                                                                                                                                                                                                                           
+        "eta_m": 0.1,                                                                                                                                                                                                                                         
+        "alpha_absorption": 0.9,                                                                                                                                                                                                                              
+    },                                                                                                                                                                                                                                                        
+    "strings": 5,                                                                                                                                                                                                                                             
+    "modules_per_string": 7,                                                                                                                                                                                                                                  
+    "module_parameters": {                                                                                                                                                                                                                                    
+        "alpha_sc": 0.004539,                                                                                                                                                                                                                                 
+        "gamma_ref": 1.2,                                                                                                                                                                                                                                     
+        "mu_gamma": -0.003,                                                                                                                                                                                                                                   
+        "I_L_ref": 5.11426,                                                                                                                                                                                                                                   
+        "I_o_ref": 8.10251e-10,                                                                                                                                                                                                                               
+        "R_sh_ref": 381.254,                                                                                                                                                                                                                                  
+        "R_sh_0": 400.0,                                                                                                                                                                                                                                      
+        "R_s": 1.06602,                                                                                                                                                                                                                                       
+        "cells_in_series": 96,                                                                                                                                                                                                                                
+        "R_sh_exp": 5.5,                                                                                                                                                                                                                                      
+        "EgRef": 1.121,                                                                                                                                                                                                                                       
+    },                                                                                                                                                                                                                                                        
+}
+inverter_parameters = {                                                                                                                                                                                                                                       
+    "Paco": 250.0,                                                                                                                                                                                                                                            
+    "Pdco": 259.589,                                                                                                                                                                                                                                          
+    "Vdco": 40.0,                                                                                                                                                                                                                                             
+    "Pso": 2.08961,                                                                                                                                                                                                                                           
+    "C0": -4.1e-05,                                                                                                                                                                                                                                           
+    "C1": -9.1e-05,                                                                                                                                                                                                                                           
+    "C2": 0.000494,                                                                                                                                                                                                                                           
+    "C3": -0.013171,                                                                                                                                                                                                                                          
+    "Pnt": 0.075,                                                                                                                                                                                                                                             
+}                                                                                                                                                                                                                                                             
+                                                                                                                                                                                                                                                              
+                                                                                                                                                                                                                                                              
+location = Location(latitude=33.98, longitude=-115.323, altitude=2300)                                                                                                                                                                                        
+                                                                                                                                                                                                                                                              
+                                                                                                                                                                                                                                                              
+array_sys = PVSystem(                                                                                                                                                                                                                                         
+    arrays=[Array(**array_params)], inverter_parameters=inverter_parameters                                                                                                                                                                                   
+)                                                                                                                                                                                                                                                             
+assert isinstance(                                                                                                                                                                                                                                            
+    ModelChain(array_sys, location, aoi_model="no_loss", spectral_model="no_loss")                                                                                                                                                                            
+    .run_model(data)                                                                                                                                                                                                                                          
+    .results.cell_temperature,                                                                                                                                                                                                                                
+    pd.Series,                                                                                                                                                                                                                                                
+)                                                                                                                                                                                                                                                             
+                                                                                                                                                                                                                                                              
+array_run = ModelChain(                                                                                                                                                                                                                                       
+    array_sys, location, aoi_model="no_loss", spectral_model="no_loss"                                                                                                                                                                                        
+).run_model([data])                                                                                                                                                                                                                                           
+assert array_run.results.cell_temperature == array_run.cell_temperature                                                                                                                                                                                       
+print(array_run.results.cell_temperature)  # (45.329789874660285,)                                                                                                                                                                                            
+                                                                                                                                                                                                                                                              
+                                                                                                                                                                                                                                                              
+array_params["strings_per_inverter"] = array_params.pop("strings")                                                                                                                                                                                            
+standard_sys = PVSystem(**array_params, inverter_parameters=inverter_parameters)                                                                                                                                                                              
+assert isinstance(                                                                                                                                                                                                                                            
+    ModelChain(standard_sys, location, aoi_model="no_loss", spectral_model="no_loss")                                                                                                                                                                         
+    .run_model(data)                                                                                                                                                                                                                                          
+    .results.cell_temperature,                                                                                                                                                                                                                                
+    pd.Series,                                                                                                                                                                                                                                                
+)                                                                                                                                                                                                                                                             
+                                                                                                                                                                                                                                                              
+standard_run = ModelChain(                                                                                                                                                                                                                                    
+    standard_sys, location, aoi_model="no_loss", spectral_model="no_loss"                                                                                                                                                                                     
+).run_model([data])                                                                                                                                                                                                                                           
+assert standard_run.results.cell_temperature == standard_run.cell_temperature                                                                                                                                                                                 
+print(standard_run.results.cell_temperature)  # (45.329789874660285,)                                                                                                                                                                                         
+assert not isinstance(standard_run.results.cell_temperature, pd.Series)                                                                                                                                                                                       
+                                                                                
+```
+
+**Expected behavior**
+`type(ModelChain.run_model([data]).results.cell_temperature) == pd.Series`
+__
+
+**Versions:**
+ - ``pvlib.__version__``:  0.8.1+4.gba4a199
+ - ``pandas.__version__``:  1.1.4
+ - python: 3.8.5
+
+
+
+Hints:
+Confirmed. This is a bug in `pvlib.modelchain.ModelChain._prepare_temperature` not all inputs are tuples and aren't being converted. @wfvining fyi and lmk if you want to fix it.
+Definitely a bug, but I think the correct behavior is slightly different than you expect. Because you pass a list to `ModelChain.run_model()` the output should be a tuple with a single `pd.Series` element.
+I agree that passing data as a tuple/list should result in all results being tuples of Series/DataFrames. So perhaps this is a separate bug, but ``array_run.results.total_irrad`` (and other results properties) is a singular `pd.DataFrame` instead of `Tuple[pd.DataFrame]`. 
+Yes, that's the problem. We should make those match the type of `ModelChain.weather`. Not sure about this, but we might be able to pass ~`unwrap=isinstance(self.weather, tuple)`~ `unwrap=not isinstance(self.weather, tuple)` to the `PVSystem` methods to accomplish this. Probably won't be that easy though, since `ModelChain` interacts heavily with `PVSystem` attributes like `temperature_model_params` which can't accept that kwarg.
+Perhaps a related error is raised when running 
+```python
+poa_data = pd.DataFrame(
+    {
+        "poa_global": [1100.0, 1101.0],
+        "poa_direct": [1000.0, 1001],
+        "poa_diffuse": [100.0, 100],
+        "module_temperature": [25.0, 25],
+    },
+    index=pd.DatetimeIndex(
+        [pd.Timestamp("2021-01-20T12:00-05:00"), pd.Timestamp("2021-01-20T12:05-05:00")]
+    ),
+)
+
+ModelChain(
+    array_sys, location, aoi_model="no_loss", spectral_model="no_loss",
+).run_model_from_poa([poa_data]) 
+```
+raises a TypeError here https://github.com/pvlib/pvlib-python/blob/6b92d218653633e366241c31e8836c0072739ece/pvlib/modelchain.py#L1102-L1106
+because `self.results.aoi_modifier = 1.0` and `self.results.spectral_modifier = 1.0` 
+https://github.com/pvlib/pvlib-python/blob/6b92d218653633e366241c31e8836c0072739ece/pvlib/modelchain.py#L904-L909
+Yup, that's the *first* place this error creeps in. That needs to change, as well as the methods that apply loss models from `PVSystem`.  `ModelChain._prep_inputs_fixed()` also needs updating, as well as `_prepate_temperature` itself. I suspect there are one or two other places as well.
+
+I'm kicking myself a bit for not considering this corner case initially. Very glad you found it early on.
+One simple solution might be to add some indirection when assigning to `ModelChain.results`. Instead of assigning directly, assignments go through an `_assign_result(field, value)` method that ensures the type of `value` matches `ModelChain.weather`. This might not be the *best* option, but it would not be too difficult to implement.
+
+Created at: 2021-02-02T17:17:56Z
+Version: 0.8

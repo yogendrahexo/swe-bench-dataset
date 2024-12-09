@@ -1,0 +1,5 @@
+Test files that should fail before fix and pass after:
+pvlib/test/test_ivtools.py::test_fit_sde_sandia
+pvlib/test/test_ivtools.py::test_fit_sde_sandia_bad_iv
+
+Test files that should pass both before and after fix:

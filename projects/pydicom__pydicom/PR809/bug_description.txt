@@ -1,0 +1,73 @@
+"Printing" of certain dicom files fails once, but works the second time
+<!-- Instructions For Filing a Bug: https://github.com/pydicom/pydicom/blob/master/CONTRIBUTING.md#filing-bugs -->
+
+#### Description
+"Printing" of certain dicom files (see [example](https://github.com/pydicom/pydicom/files/2865551/dicom_exception.zip)) fails once, but not the second time
+
+#### Steps/Code to Reproduce
+```python
+from pydicom import read_file
+
+a = read_file('...')
+print(a)
+# triggers exception: AttributeError: With tag (0028, 3000) got exception: Failed to resolve ambiguous VR for tag (0028, 3002): 'Dataset' object has no attribute 'PixelRepresentation'
+
+# try same thing again...
+print(a)
+# just works...
+```
+
+#### Versions
+Behaviour as described above at least on:
+```
+Linux-4.18.0-15-generic-x86_64-with-Ubuntu-18.10-cosmic
+('Python', '2.7.15+ (default, Oct  2 2018, 22:12:08) \n[GCC 8.2.0]')
+('numpy', '1.14.5')
+('pydicom', '1.3.0.dev0')
+```
+and
+
+
+```
+('pydicom', '1.2.2')
+```
+
+Works as expected on:
+```
+Linux-4.18.0-15-generic-x86_64-with-Ubuntu-18.10-cosmic
+('Python', '2.7.15+ (default, Oct  2 2018, 22:12:08) \n[GCC 8.2.0]')
+('pydicom', '1.0.1')
+```
+
+
+Hints:
+Occurs because Pixel Representation is in the top level-dataset while the ambiguous element is in a sequence.
+
+Regression test:
+```python
+from pydicom.dataset import Dataset
+
+ds = Dataset()
+ds.PixelRepresentation = 0
+ds.ModalityLUTSequence = [Dataset()]
+ds.ModalityLUTSequence[0].LUTDescriptor = [0, 0, 16]
+ds.ModalityLUTSequence[0].LUTExplanation = None
+ds.ModalityLUTSequence[0].ModalityLUTType = 'US'  # US = unspecified
+ds.ModalityLUTSequence[0].LUTData = b'\x0000\x149a\x1f1c\c2637'
+
+ds.is_little_endian= True
+ds.is_implicit_VR = False
+ds.save_as('test.dcm')
+```
+
+The reason it works the second time is the ambiguous VR correction only gets used during the initial decoding (pydicom uses deferred decoding which is triggered by the first `print()`).
+
+This might be a bit tricky to fix elegantly...
+One thing we should probably change is to warn rather than raise if ambiguous correction fails during decoding. Should still raise if occurs during encoding
+> This might be a bit tricky to fix elegantly...
+
+Yes... we have to support the cases where the tag needed to resolve the ambiguity is in the sequence item, or in any parent dataset (for nested sequences). Having the parent dataset as a member in the dataset would allow this, but this would also mean, that it has always to be set on creating a sequence item... not sure if this is a good idea. 
+Another option is to pass the function a dict/Dataset containing elements required for resolving ambiguity (if they're present)
+
+Created at: 2019-03-04T20:14:54Z
+Version: 1.2

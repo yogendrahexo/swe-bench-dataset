@@ -1,0 +1,9 @@
+Test files that should fail before fix and pass after:
+test/core/rules/docstring_test.py::test_backtick_replace
+test/rules/std_L054_test.py::test__rules__std_L054_raised
+
+Test files that should pass both before and after fix:
+test/core/rules/docstring_test.py::test_content_count[\n
+test/core/rules/docstring_test.py::test_keyword_anti_before_best
+test/rules/std_L054_test.py::test__rules__std_L054_unparsable
+test/rules/std_L054_test.py::test__rules__std_L054_noqa

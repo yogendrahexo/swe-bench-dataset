@@ -1,0 +1,38 @@
+Corrections to Townsend snow model
+Private communications with the model's author have turned up some issues with the pvlib implementation. Chief among the issues is  this part of the calculation:
+
+```
+    lower_edge_height_clipped = np.maximum(lower_edge_height, 0.01)
+    gamma = (
+        slant_height
+        * effective_snow_weighted_m
+        * cosd(surface_tilt)
+        / (lower_edge_height_clipped**2 - effective_snow_weighted_m**2)
+        * 2
+        * tand(angle_of_repose)
+    )
+
+    ground_interference_term = 1 - C2 * np.exp(-gamma)
+```
+
+When `lower_edge_height_clipped` < `effective_snow_weighted_m`, `gamma` < 0 and the `ground_interference_term` can become negative. In contrast, the author's intent is that C2 < `ground_interference_terms` < 1. The author recommends clipping the squared difference (lower bound being worked out but will be something like 0.01.).
+
+Other issues appear to arise from the unit conversions. The published model uses inches for distance and snow depth. The pvlib code uses cm for snow depth (convenience for working with external snow data) and m for distances (for consistency with the rest of pvlib). After several steps, including the `ground_interference_term` calculation, the code converts from cm or m to inches to apply the final formula for loss (since the formula involves some coefficients determined by a regression). It would be easier to trace the pvlib code back to the paper if the internal unit conversions (from cm / m to inches) were done earlier.
+
+
+
+Hints:
+Interestingly, clamping the difference of squares at 0.01 was part of the original PR but got lost along the way: https://github.com/pvlib/pvlib-python/pull/1251#discussion_r830258000
+
+It would be great if the communication with the author results in improved tests as well as improved code.
+After communications with the author, the pvlib code is missing two items:
+
+- a lower bound on `lower_edge_height_clipped**2 - effective_snow_weighted_m**2` which the author specifies should be 0.1 in^2.
+- a factor that multiplies the monthly loss fraction, to represent the potential for a string of modules at the top of the slanted array to generate power while strings at lower positions are still affected by snow.  This factor was brought up in #1625 
+
+Neither is documented in the 2011 paper but should be added to 1) prevent unreasonably low loss values (item 1) and to better represent the loss for systems with multiple, horizontally-oriented strings.
+
+Also, the author recommends advising users to enter 1/2 the total module width as the slant_height for single-axis tracked systems, which makes sense to me, as snow could slide off either surface depending on its rotation. 
+
+Created at: 2023-01-28T00:30:44Z
+Version: 0.8

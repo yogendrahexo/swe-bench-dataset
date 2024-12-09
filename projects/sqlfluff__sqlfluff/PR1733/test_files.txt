@@ -1,0 +1,7 @@
+Test files that should fail before fix and pass after:
+test/rules/std_L003_L036_L039_combo_test.py::test__rules__std_L003_L036_L039
+
+Test files that should pass both before and after fix:
+test/rules/std_L016_L36_combo_test.py::test__rules__std_L016_L036_long_line_lint
+test/rules/std_L016_L36_combo_test.py::test__rules__std_L016_L036_long_line_fix
+test/rules/std_L016_L36_combo_test.py::test__rules__std_L016_L036_long_line_fix2

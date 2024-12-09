@@ -1,0 +1,89 @@
+Pyreverse regression after #857 (astroid 2.5)
+### Steps to reproduce
+1. Checkout pylint's source (which contains pyreverse)
+1. cd `<pylint checkout>` 
+2. Run `source .tox/py39/bin/activate` or similar (you may need to run a tox session first)
+3. Ensure you have `astroid` ac2b173bc8acd2d08f6b6ffe29dd8cda0b2c8814 or later
+4. Ensure you have installed `astroid` (`python3 -m pip install -e <path-to-astroid>`) as dependencies may be different
+4. Run `pyreverse --output png --project test tests/data`
+
+### Current behaviour
+A `ModuleNotFoundError` exception is raised.
+
+```
+$ pyreverse --output png --project test tests/data
+parsing tests/data/__init__.py...
+parsing /opt/contrib/pylint/pylint/tests/data/suppliermodule_test.py...
+parsing /opt/contrib/pylint/pylint/tests/data/__init__.py...
+parsing /opt/contrib/pylint/pylint/tests/data/clientmodule_test.py...
+Traceback (most recent call last):
+  File "/opt/contrib/pylint/pylint/.tox/py39/bin/pyreverse", line 8, in <module>
+    sys.exit(run_pyreverse())
+  File "/opt/contrib/pylint/pylint/.tox/py39/lib/python3.9/site-packages/pylint/__init__.py", line 39, in run_pyreverse
+    PyreverseRun(sys.argv[1:])
+  File "/opt/contrib/pylint/pylint/.tox/py39/lib/python3.9/site-packages/pylint/pyreverse/main.py", line 201, in __init__
+    sys.exit(self.run(args))
+  File "/opt/contrib/pylint/pylint/.tox/py39/lib/python3.9/site-packages/pylint/pyreverse/main.py", line 219, in run
+    diadefs = handler.get_diadefs(project, linker)
+  File "/opt/contrib/pylint/pylint/.tox/py39/lib/python3.9/site-packages/pylint/pyreverse/diadefslib.py", line 236, in get_diadefs
+    diagrams = DefaultDiadefGenerator(linker, self).visit(project)
+  File "/opt/contrib/pylint/pylint/.tox/py39/lib/python3.9/site-packages/pylint/pyreverse/utils.py", line 210, in visit
+    self.visit(local_node)
+  File "/opt/contrib/pylint/pylint/.tox/py39/lib/python3.9/site-packages/pylint/pyreverse/utils.py", line 207, in visit
+    methods[0](node)
+  File "/opt/contrib/pylint/pylint/.tox/py39/lib/python3.9/site-packages/pylint/pyreverse/diadefslib.py", line 162, in visit_module
+    self.linker.visit(node)
+  File "/opt/contrib/pylint/pylint/.tox/py39/lib/python3.9/site-packages/pylint/pyreverse/utils.py", line 210, in visit
+    self.visit(local_node)
+  File "/opt/contrib/pylint/pylint/.tox/py39/lib/python3.9/site-packages/pylint/pyreverse/utils.py", line 207, in visit
+    methods[0](node)
+  File "/opt/contrib/pylint/pylint/.tox/py39/lib/python3.9/site-packages/pylint/pyreverse/inspector.py", line 257, in visit_importfrom
+    relative = astroid.modutils.is_relative(basename, context_file)
+  File "/opt/contrib/pylint/astroid/astroid/modutils.py", line 581, in is_relative
+    parent_spec = importlib.util.find_spec(name, from_file)
+  File "/usr/local/Cellar/python@3.9/3.9.2_4/Frameworks/Python.framework/Versions/3.9/lib/python3.9/importlib/util.py", line 94, in find_spec
+    parent = __import__(parent_name, fromlist=['__path__'])
+ModuleNotFoundError: No module named 'pylint.tests'
+```
+
+### Expected behaviour
+No exception should be raised. Prior to #857 no exception was raised.
+
+```
+$ pyreverse --output png --project test tests/data
+parsing tests/data/__init__.py...
+parsing /opt/contributing/pylint/tests/data/suppliermodule_test.py...
+parsing /opt/contributing/pylint/tests/data/__init__.py...
+parsing /opt/contributing/pylint/tests/data/clientmodule_test.py...
+```
+
+### ``python -c "from astroid import __pkginfo__; print(__pkginfo__.version)"`` output
+`2.6.0-dev0` (cab9b08737ed7aad2a08ce90718c67155fa5c4a0)
+
+
+
+Hints:
+Some notes:
+
+- The `ModuleNotFoundError` exception is thrown by `importlib.util.find_spec`. Before python 3.7 this was an `AttributeError`
+- `modutils.is_relative()` is the call-site for the `find_spec` call
+- It seems that `is_ralative()` is trying to find a parent mod-spec for the anchor `from_file` parameter so that it can check to see if the `modname` is contained by it
+- Neither `is_relative` nor its tests, explicitly handle on-disk paths (that is, paths for which `os.path.exists()` returns `True`) vs virtual-paths (`exists() == False`). The seems to be important to `find_spec` which raises if the package's `__path__` attribute isn't found (which it won't be for virtual paths).
+- The existing unit tests for `is_realtive()` use a range of modules to check against a set of module paths via `__path__[0]`. Somehow these pass and it is not clear why/how
+
+One workaround fix, that feels like a hack until I understand the problem better, is for `is_relative()` to handle the `ModuleNotFoundError`/`AttributeError` exceptions and them as signifying that the `parent_spec` is being not-yet found. However, that requires that the loop-logic is fixed for linux-like systems, otherwise you end up in an infinite loop with `len(file_path)>0` always being true for `/` and `file_path = os.path.dirname('/')` always returning `/`.
+
+I have written some new unit tests for this issue and extended the existing ones, but there is some fundamental logic underpinning the use of `importlib.util.find_spec` that I am not smart enough to understand. For example, why do the existing unit-tests not all use the same `modname` parameter? Is it to work around the import caching in `sys.modules`? Should we take that into account?
+
+My unit tests look at both virtual and ondisk paths (because of the `if not os.path.isdir(from_file):` line in `is_realtive()`, and the docs for `find_spec`). They also look at both absolute and relative paths explicitly. Finally, they also use system modules and assert that they are already in the import cache.
+
+.. and I thought this fix was going to be easy.
+@doublethefish thanks for your report and investigation.
+I can reproduce it and i confirm that #857 is the origin of the issue.
+It seems like this happens if an import inside a package which is at least two levels deep is processed.
+For example, trying to run ``pyreverse`` on ``pylint`` itself will crash as soon as the import statements in checker modules in ``pylint.checkers.refactoring`` are processed.
+``importlib.util.find_spec(name, from_file)`` is called with ``name`` = ``checkers.refactoring``. 
+``find_spec`` will then split this up and try to import ``checkers``, which fails because the path to _inside_ the ``pylint`` package (i.e. ``pylint/pylint`` from the repo root) is normally not in the Pythonpath.
+
+Created at: 2021-05-01T16:13:04Z
+Version: 2.5

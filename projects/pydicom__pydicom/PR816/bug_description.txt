@@ -1,0 +1,94 @@
+LookupError: unknown encoding: Not Supplied
+#### Description
+Output from `ds = pydicom.read_file(dcmFile)` (an RTSTRUCT dicom file, SOP UID 1.2.840.10008.5.1.4.1.1.481.3) results in some tags throwing a LookupError: "LookupError: unknown encoding: Not Supplied"
+Specific tags which cannot be decoded are as follows:
+['DeviceSerialNumber',
+ 'Manufacturer',
+ 'ManufacturerModelName',
+ 'PatientID',
+ 'PatientName',
+ 'RTROIObservationsSequence',
+ 'ReferringPhysicianName',
+ 'SeriesDescription',
+ 'SoftwareVersions',
+ 'StructureSetLabel',
+ 'StructureSetName',
+ 'StructureSetROISequence',
+ 'StudyDescription',
+ 'StudyID']
+
+I suspect that it's due to the fact that `ds.SpecificCharacterSet = 'Not Supplied'`, but when I try to set `ds.SpecificCharacterSet` to something reasonable (ie ISO_IR_100 or 'iso8859'), it doesn't seem to make any difference.
+
+Reading the same file, with NO modifications, in gdcm does not result in any errors and all fields are readable.
+
+#### Steps/Code to Reproduce
+```py
+import pydicom 
+ds = pydicom.read_file(dcmFile)
+print(ds.PatientName)
+```
+
+#### Expected Results
+No error is thrown and the name of the patient is printed.
+
+#### Actual Results
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "C:\Users\Amanda\AppData\Local\Continuum\anaconda3\envs\itk\lib\site-packages\pydicom\valuerep.py", line 706, in __str__
+    return '='.join(self.components).__str__()
+  File "C:\Users\Amanda\AppData\Local\Continuum\anaconda3\envs\itk\lib\site-packages\pydicom\valuerep.py", line 641, in components
+    self._components = _decode_personname(groups, self.encodings)
+  File "C:\Users\Amanda\AppData\Local\Continuum\anaconda3\envs\itk\lib\site-packages\pydicom\valuerep.py", line 564, in _decode_personname
+    for comp in components]
+  File "C:\Users\Amanda\AppData\Local\Continuum\anaconda3\envs\itk\lib\site-packages\pydicom\valuerep.py", line 564, in <listcomp>
+    for comp in components]
+  File "C:\Users\Amanda\AppData\Local\Continuum\anaconda3\envs\itk\lib\site-packages\pydicom\charset.py", line 129, in decode_string
+    return value.decode(encodings[0])
+LookupError: unknown encoding: Not Supplied
+
+#### Versions
+Platform: Windows-10-10.0.17763-SP0
+Python Version: Python 3.6.4 |Anaconda, Inc.| (default, Mar 12 2018, 20:20:50) [MSC v.1900 64 bit (AMD64)]
+pydicom Version: pydicom 1.2.2
+
+
+
+Hints:
+You said on the pynetdicom issue you can't upload an anonymised file, but can you open the file in a hex editor and post the raw byte output from the first few (non-identifying) elements? From the start of the file to the end of say (0008,0070) should be enough.
+
+Alternatively you could truncate the file at the end of the (0008,0070) element and upload that.
+
+If you need to know how to interpret the encoded data check out [Part 5, Chapter 7](http://dicom.nema.org/medical/dicom/current/output/chtml/part05/chapter_7.html) of the DICOM Standard. And if the file's been saved in the [DICOM File Format](http://dicom.nema.org/medical/dicom/current/output/chtml/part10/chapter_7.html) there may also be a 128 byte header  following by 'DICM' before the start of the dataset (which we don't need).
+> open the file in a hex editor and post the raw byte output from the first few (non-identifying) elements
+
+Alternatively:
+```
+import pydicom.config
+pydicom.config.debug(True)
+ds = dcmread(youfilename)
+```
+And as suggested copy the first non-identifying part of the debug output for posting.
+Please find the truncated dataset attached as requested. I wasn't allowed to upload a *.dcm file so just wrote it as a *.txt file. The file is readable by pydicom but exhibits the same aforementioned problems, where the "LookupError: unknown encoding: Not Supplied" happens only for the Manufacturer tag.
+
+[truncated.txt](https://github.com/pydicom/pydicom/files/2947883/truncated.txt)
+
+Okay, so I've tried deleting SpecificCharacterSet and the error still occurs.  I think pydicom is still holding on to the original values, and needs some code to handle the case when SpecificCharacterSet is deleted or set again after reading the file. We can dig into it a little further.
+
+
+Workaround:
+```python
+from pydicom import dcmread
+
+ds = dcmread('path/to/file')
+del ds.SpecificCharacterSet
+ds.read_encoding = []
+```
+
+Brilliant!  That worked! 
+
+Thank you for the quick fix! I've found pydicom is a lot more user-friendly than gdcm so I'm really glad I don't have to resort to that. 😀 
+No problem, @mrbean-bremen do you want to handle the underlying issue?
+Certainly - as I may have introduced it... Not sure if I'll find the time today though. 
+
+Created at: 2019-03-10T15:41:44Z
+Version: 1.2

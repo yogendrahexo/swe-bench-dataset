@@ -1,0 +1,36 @@
+'AsStringVisitor' object has no attribute 'visit_unknown'
+```python
+>>> import astroid
+>>> astroid.nodes.Unknown().as_string()
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/Users/tusharsadhwani/code/marvin-python/venv/lib/python3.9/site-packages/astroid/nodes/node_ng.py", line 609, in as_string
+    return AsStringVisitor()(self)
+  File "/Users/tusharsadhwani/code/marvin-python/venv/lib/python3.9/site-packages/astroid/nodes/as_string.py", line 56, in __call__
+    return node.accept(self).replace(DOC_NEWLINE, "\n")
+  File "/Users/tusharsadhwani/code/marvin-python/venv/lib/python3.9/site-packages/astroid/nodes/node_ng.py", line 220, in accept
+    func = getattr(visitor, "visit_" + self.__class__.__name__.lower())
+AttributeError: 'AsStringVisitor' object has no attribute 'visit_unknown'
+>>> 
+```
+### `python -c "from astroid import __pkginfo__; print(__pkginfo__.version)"` output
+
+2.8.6-dev0
+
+
+Hints:
+Thank you for opening the issue.
+I don't believe `Unknown().as_string()` is ever called regularly. AFAIK it's only used during inference. What should the string representation of an `Unknown` node be? So not sure this needs to be addressed.
+Probably just `'Unknown'`.
+It's mostly only a problem when we do something like this:
+
+```python
+inferred = infer(node)
+if inferred is not Uninferable:
+    if inferred.as_string().contains(some_value):
+        ...
+```
+So for the most part, as long as it doesn't crash we're good.
+
+Created at: 2021-11-21T16:15:23Z
+Version: 2.9

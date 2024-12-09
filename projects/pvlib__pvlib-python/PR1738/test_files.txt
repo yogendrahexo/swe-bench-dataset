@@ -1,0 +1,11 @@
+Test files that should fail before fix and pass after:
+pvlib/tests/test_soiling.py::test_hsu_no_cleaning
+pvlib/tests/test_soiling.py::test_hsu
+pvlib/tests/test_soiling.py::test_hsu_defaults
+pvlib/tests/test_soiling.py::test_hsu_variable_time_intervals
+
+Test files that should pass both before and after fix:
+pvlib/tests/test_soiling.py::test_kimber_nowash
+pvlib/tests/test_soiling.py::test_kimber_manwash
+pvlib/tests/test_soiling.py::test_kimber_norain
+pvlib/tests/test_soiling.py::test_kimber_initial_soil

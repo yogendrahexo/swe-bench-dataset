@@ -1,0 +1,76 @@
+to_json does not work with binary data in pixel_array
+**Describe the issue**
+Loading a dicom file and then performing a to_json() on it does not work with binary data in pixel_array.
+
+
+
+**Expected behavior**
+I would have expected that a base64 conversion is first performed on the binary data and then encoded to json. 
+
+**Steps To Reproduce**
+How to reproduce the issue. Please include:
+1. A minimum working code sample
+
+import pydicom
+ds = pydicom.dcmread('path_to_file')
+output = ds.to_json()
+
+
+2. The traceback (if one occurred)
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/.virtualenvs/my_env/lib/python3.7/site-packages/pydicom/dataset.py", line 2003, in to_json
+    dump_handler=dump_handler
+  File "/.virtualenvs/my_env/lib/python3.7/site-packages/pydicom/dataset.py", line 1889, in _data_element_to_json
+    binary_value = data_element.value.encode('utf-8')
+AttributeError: 'bytes' object has no attribute 'encode'
+
+
+3. Which of the following packages are available and their versions:
+  * Numpy
+numpy==1.17.2
+  * Pillow
+Pillow==6.1.0
+  * JPEG-LS
+  * GDCM
+4. The anonymized DICOM dataset (if possible).
+
+**Your environment**
+Please run the following and paste the output.
+```bash
+$ python -c "import platform; print(platform.platform())"
+Darwin-19.2.0-x86_64-i386-64bit
+$ python -c "import sys; print('Python ', sys.version)"
+Python  3.7.6 (default, Dec 30 2019, 19:38:26) 
+[Clang 11.0.0 (clang-1100.0.33.16)]
+$ python -c "import pydicom; print('pydicom ', pydicom.__version__)"
+pydicom  1.3.0
+```
+
+
+
+Hints:
+Can you please check with pydicom 1.4? Binary data handling should have been fixed there. 
+ok works now once I set the bulk_data_threshold value to a higher value. 
+
+Thank you!
+Ok, that may be an issue with the data size. Currently, the default for `bulk_data_threshold` is 1, if I remember correctly, which may not be the best value - meaning that all binary data larger than that expect a bulk data element handler. Setting the threshold to a large value shall fix this, if the data is encoded directly.
+Ah, you already found that, ok!
+
+yep. thanks, works now. 
+@darcymason - json support is still flagged as alpha - I think we can consider it at least beta now, and add a small section in the documentation.
+We may also rethink the `bulk_data_threshold` parameter - maybe just ignore it if no bulk data handler is set, and set the default value to some sensible value (1kB or something).
+> @darcymason - json support is still flagged as alpha - I think we can consider it at least beta now, and add a small section in the documentation.
+> We may also rethink the `bulk_data_threshold` parameter - maybe just ignore it if no bulk data handler is set, and set the default value to some sensible value (1kB or something).
+
+I agree that updating the documentation is a good idea for this. As its pretty common to have binary image data in dicom files, and its guaranteed to fail with the default value for bulk_data_threshold
+
+Thanks once again though!
+Ping @pieper, @hackermd for comment about `bulk_data_threshold`.
+> We may also rethink the bulk_data_threshold parameter - maybe just ignore it if no bulk data handler is set, and set the default value to some sensible value (1kB or something).
+
+1k threshold makes sense to me.  👍 
+
+Created at: 2020-01-17T20:57:00Z
+Version: 1.4

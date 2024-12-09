@@ -1,0 +1,26 @@
+Handle odd-sized dicoms with warning
+<!-- Instructions For Filing a Bug: https://github.com/pydicom/pydicom/blob/master/CONTRIBUTING.md#filing-bugs -->
+
+#### Description
+<!-- Example: Attribute Error thrown when printing (0x0010, 0x0020) patient Id> 0-->
+
+We have some uncompressed dicoms with an odd number of pixel bytes (saved by older versions of pydicom actually). 
+
+When we re-open with pydicom 1.2.2, we're now unable to extract the image, due to the change made by https://github.com/pydicom/pydicom/pull/601
+
+Would it be possible to emit a warning instead of rejecting the dicom for such cases?
+
+#### Version
+1.2.2
+
+
+Hints:
+I agree that this would be sensible. Checking the mentioned PR, I also found that we had [discussed this briefly](https://github.com/pydicom/pydicom/pull/601#issuecomment-374710953) (with no result, obviously).
+@darcymason - I think this is another case of "try to handle broken DICOM, only raise in 'strict' mode", especially as these images have been written by pydicom itself...
+unsponsored plug: I like reviewable.io to keep track of what comments are resolved/unresolved/just-a-nit before merging. Looks like its free for open source repos.
+> @darcymason - I think this is another case of "try to handle broken DICOM, only raise in 'strict' mode", especially as these images have been written by pydicom itself...
+
+Yes, I agree, for sure.  Even without it being written by pydicom, it is better to be tolerant on reading.
+
+Created at: 2019-06-21T12:02:05Z
+Version: 1.2

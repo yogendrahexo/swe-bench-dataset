@@ -1,0 +1,140 @@
+Unexpected threshold behavior
+### Describe the bug, what's wrong, and what you expected.
+
+I'm using simple structed grids of cells, and need to filter-out some "nodata" cells. To do this, I'm setting scalar values to the cell data, then using [threshold](https://docs.pyvista.org/api/core/_autosummary/pyvista.DataSetFilters.threshold.html) with the nodata value with `invert=True`. However, I'm getting confusing and inconsistent results compared to ParaView.
+
+### Steps to reproduce the bug.
+
+```python
+import numpy as np
+import pyvista
+
+x = np.arange(5, dtype=float)
+y = np.arange(6, dtype=float)
+z = np.arange(2, dtype=float)
+xx, yy, zz = np.meshgrid(x, y, z)
+mesh = pyvista.StructuredGrid(xx, yy, zz)
+mesh.cell_data.set_scalars(np.repeat(range(5), 4))
+
+# All data
+mesh.plot(show_edges=True)
+# output is normal
+
+# Filtering out nodata (zero) values
+mesh.threshold(0, invert=True).plot(show_edges=True)
+# output does not look normal, only 0-value cells are shown
+```
+
+### System Information
+
+```shell
+--------------------------------------------------------------------------------
+  Date: Thu Nov 17 15:23:57 2022 New Zealand Daylight Time
+
+                OS : Windows
+            CPU(s) : 12
+           Machine : AMD64
+      Architecture : 64bit
+               RAM : 31.7 GiB
+       Environment : IPython
+        GPU Vendor : NVIDIA Corporation
+      GPU Renderer : NVIDIA RTX A4000/PCIe/SSE2
+       GPU Version : 4.5.0 NVIDIA 472.39
+
+  Python 3.9.13 | packaged by conda-forge | (main, May 27 2022, 16:50:36) [MSC
+  v.1929 64 bit (AMD64)]
+
+           pyvista : 0.37.0
+               vtk : 9.1.0
+             numpy : 1.22.3
+           imageio : 2.22.0
+            scooby : 0.7.0
+             pooch : v1.6.0
+        matplotlib : 3.6.2
+             PyQt5 : 5.12.3
+           IPython : 8.6.0
+          colorcet : 3.0.1
+             scipy : 1.8.0
+              tqdm : 4.63.0
+            meshio : 5.3.4
+--------------------------------------------------------------------------------
+```
+
+
+### Screenshots
+
+Normal looking whole grid:
+![image](https://user-images.githubusercontent.com/895458/202339692-5046b23f-c3c8-4b2c-aaa7-4aa06afbae9f.png)
+
+Odd-looking threshold attempt with pyvista, showing only 0-values:
+![image](https://user-images.githubusercontent.com/895458/202339879-b2270e4c-a71b-4d43-86f8-4f67445b7b69.png)
+
+Expected result with ParaView theshold filter with upper/lower set to 0 and invert selected:
+![image](https://user-images.githubusercontent.com/895458/202340379-fea26838-b0f4-4828-b510-825f53522e87.png)
+
+Apologies for any "user error", as I'm new to this package.
+
+
+Hints:
+Can confirm, and I am seeing quite a few inconsistent results with the threshold filter. So this is not a user error!
+
+ For example `inverter=True/False` should produce two logical inverses for this mesh, but it doesn't:
+<img width="624" alt="Screen Shot 2022-11-16 at 11 18 48 PM" src="https://user-images.githubusercontent.com/22067021/202371190-7dcd64df-1882-4876-b4c3-43fe614913a6.png">
+
+
+Second, depending on if `value` is a single value `0` or a range `[0, 0]` yields completely different results from the PyVista filter (but not in ParaView):
+
+
+```py
+p = pv.Plotter(notebook=0, shape=(1,2))
+p.add_mesh(mesh.threshold(0, invert=False))
+p.subplot(0,1)
+p.add_mesh(mesh.threshold(0, invert=True))
+p.link_views()
+p.view_isometric()
+p.show()
+```
+
+<img width="624" alt="Screen Shot 2022-11-16 at 11 20 01 PM" src="https://user-images.githubusercontent.com/22067021/202371391-393280c1-1091-4c61-82b2-e95e76b49327.png">
+
+
+vs.
+
+```py
+p = pv.Plotter(notebook=0, shape=(1,2))
+p.add_mesh(mesh.threshold([0, 0], invert=False))
+p.subplot(0,1)
+p.add_mesh(mesh.threshold([0, 0], invert=True))
+p.link_views()
+p.view_isometric()
+p.show()
+```
+
+<img width="624" alt="Screen Shot 2022-11-16 at 11 20 34 PM" src="https://user-images.githubusercontent.com/22067021/202371476-cfd0fabb-daad-47db-acc5-855b43504f21.png">
+
+
+This is not good... I'll start digging into this and see if I can fix the `threshold` filter such that I has consistency with itself and with ParaView
+
+Thanks for taking a closer look. I should have mentioned that I get the same behavior on linux using a similar conda-forge setup.
+
+I've found that ranges like `[1, 1]` work as expected to filter on values == 1, but to filter on zero, it needs to span a very small range:
+```python
+p = pv.Plotter(notebook=0, shape=(1,2))
+p.add_mesh(mesh.threshold([-1e-30, 1e-30], invert=False))
+p.subplot(0,1)
+p.add_mesh(mesh.threshold([-1e-30, 1e-30], invert=True))
+p.link_views()
+p.view_isometric()
+p.show()
+```
+which also logs this message three times:
+> 2022-11-17 22:30:30.021 ( 559.089s) [        20F0C740]       vtkThreshold.cxx:96    WARN| vtkThreshold::ThresholdBetween was deprecated for VTK 9.1 and will be removed in a future version.
+
+Another solution is to use [`extract_cells`](https://docs.pyvista.org/api/core/_autosummary/pyvista.StructuredGrid.extract_cells.html):
+```python
+mesh.extract_cells(mesh.cell_data.active_scalars != 0).plot()
+mesh.extract_cells(mesh.cell_data.active_scalars != 1).plot()
+```
+
+Created at: 2022-12-25T02:44:32Z
+Version: 0.38

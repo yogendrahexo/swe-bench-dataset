@@ -1,0 +1,5 @@
+Test files that should fail before fix and pass after:
+test/rules/std_L003_L065_combo_test.py::test__rules__std_L003_L065_union_all_in_subquery_lint
+test/rules/std_L003_L065_combo_test.py::test__rules__std_L003_L065_union_all_in_subquery_fix
+
+Test files that should pass both before and after fix:

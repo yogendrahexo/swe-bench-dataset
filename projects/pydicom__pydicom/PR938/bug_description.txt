@@ -1,0 +1,40 @@
+[python 3.8] failing tests: various issues but "max recursion depth reached" seems to be one
+#### Description
+Fedora is beginning to test python packages against python 3.8. Pydicom builds but tests fail with errors.
+
+#### Steps/Code to Reproduce
+
+```
+python setup.py build
+python setup.py install
+pytest
+```
+
+The complete build log is attached. It includes the complete build process. The root log is also attached. These are the versions of other python libraries that are in use:
+
+```
+python3-dateutil-1:2.8.0-5.fc32.noarch
+python3-devel-3.8.0~b3-4.fc32.x86_64
+python3-numpy-1:1.17.0-3.fc32.x86_64
+python3-numpydoc-0.9.1-3.fc32.noarch
+python3-pytest-4.6.5-3.fc32.noarch
+python3-setuptools-41.0.1-8.fc32.noarch
+python3-six-1.12.0-5.fc32.noarch
+```
+
+[build-log.txt](https://github.com/pydicom/pydicom/files/3527558/build-log.txt)
+[root-log.txt](https://github.com/pydicom/pydicom/files/3527559/root-log.txt)
+
+
+
+Hints:
+Thanks, @sanjayankur31, we'll look into it.
+Looks like the [culprit](https://docs.python.org/3.8/whatsnew/3.8.html#changes-in-python-behavior) might be:
+
+> Removed `__str__` implementations from builtin types bool, int, float, complex and few classes from the standard library. They now inherit `__str__()` from object. As result, defining the `__repr__()` method in the subclass of these classes will affect they string representation.
+
+The unit test results in the build log shows issues with `DSfloat.__str__()/DSfloat.__repr__()` and `IS.__repr__()` on lines [350](https://github.com/pydicom/pydicom/blob/6d8ef0bfcec983e5f8bd8a2e359ff318fe9fcf65/pydicom/valuerep.py#L353)/353 and [520](https://github.com/pydicom/pydicom/blob/6d8ef0bfcec983e5f8bd8a2e359ff318fe9fcf65/pydicom/valuerep.py#L520) of current master.
+
+
+Created at: 2019-08-22T05:03:01Z
+Version: 1.3

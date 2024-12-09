@@ -1,0 +1,32 @@
+dcmread cannot handle pathlib.Path objects
+**Describe the bug**
+The `dcmread()` currently fails when passed an instance of `pathlib.Path`. The problem is the following line:
+https://github.com/pydicom/pydicom/blob/8b0bbaf92d7a8218ceb94dedbee3a0463c5123e3/pydicom/filereader.py#L832
+
+**Expected behavior**
+`dcmread()` should open and read the file to which the `pathlib.Path` object points.
+
+The line above should probably be:
+```python
+if isinstance(fp, (str, Path)):
+````
+
+**Steps To Reproduce**
+```python
+from pathlib import Path
+from pydicom.filereader import dcmread
+
+dcm_filepath = Path('path/to/file')
+dcmread(dcm_filepath)
+```
+
+
+Hints:
+Good point. We could use `os.fspath`, but that is only available from Python 3.6 onwards, so we probably have to add a respective check...
+The `save_as()` method of `Dataset` has the same issue.
+Yes, I noticed. I'm on it.
+Yep.  I actually started writing code for it at one point, but got side-tracked with other issues.  Basically just wrapping the argument in str() fixes it.
+
+
+Created at: 2020-02-09T18:36:33Z
+Version: 1.4

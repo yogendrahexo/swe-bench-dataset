@@ -1,0 +1,5 @@
+Test files that should fail before fix and pass after:
+pvlib/tests/iotools/test_crn.py::test_read_crn_map_variables
+
+Test files that should pass both before and after fix:
+pvlib/tests/iotools/test_crn.py::test_read_crn

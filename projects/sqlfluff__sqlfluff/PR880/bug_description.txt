@@ -1,0 +1,11 @@
+Rename BaseCrawler class as BaseRule to be clearer, avoid confusion with analysis helper classes, e.g. SelectCrawler
+Discussed here:
+https://github.com/sqlfluff/sqlfluff/pull/779#pullrequestreview-604167034
+
+
+
+Hints:
+Yes. The fact that it's called a crawler is a historic artifact when I thought that the crawlers and rules might be separate. Given they're not, this makes total sense.
+
+Created at: 2021-03-21T01:36:49Z
+Version: 0.4

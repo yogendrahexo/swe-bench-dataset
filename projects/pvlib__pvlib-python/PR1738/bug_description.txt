@@ -1,0 +1,21 @@
+`pvlib.soiling.hsu` takes `tilt` instead of `surface_tilt`
+`pvlib.soiling.hsu` takes a `tilt` parameter representing the same thing we normally call `surface_tilt`:
+
+https://github.com/pvlib/pvlib-python/blob/7a2ec9b4765124463bf0ddd0a49dcfedc4cbcad7/pvlib/soiling.py#L13-L14
+
+https://github.com/pvlib/pvlib-python/blob/7a2ec9b4765124463bf0ddd0a49dcfedc4cbcad7/pvlib/soiling.py#L33-L34
+
+I don't see any good reason for this naming inconsistency (I suspect `tilt` just got copied from the matlab implementation) and suggest we rename the parameter to `surface_tilt` with a deprecation.
+
+Also, the docstring parameter type description says it must be `float`, but the model's reference explicitly says time series tilt is allowed: 
+
+> The angle is variable for tracking systems and is taken as the average angle over the time step.
+
+
+
+
+Hints:
+On second thought, I'm not seeing how this can be deprecated without reordering the parameters, which doesn't seem worth it to me.  I'm inclined to rename it without deprecation in 0.10.0. 
+
+Created at: 2023-05-16T21:31:11Z
+Version: 0.9

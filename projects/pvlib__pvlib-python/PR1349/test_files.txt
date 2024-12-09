@@ -1,0 +1,8 @@
+Test files that should fail before fix and pass after:
+pvlib/tests/test_spectrum.py::test_aoi_gt_90
+
+Test files that should pass both before and after fix:
+pvlib/tests/test_spectrum.py::test_spectrl2
+pvlib/tests/test_spectrum.py::test_spectrl2_array
+pvlib/tests/test_spectrum.py::test_spectrl2_series
+pvlib/tests/test_spectrum.py::test_dayofyear_missing

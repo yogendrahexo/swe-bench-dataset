@@ -1,0 +1,9 @@
+expose pvlib.temperature.fuentes in PVSystem and ModelChain
+Follow up to #1032 and #1037 
+
+
+Hints:
+nan
+
+Created at: 2020-10-01T01:40:51Z
+Version: 0.7

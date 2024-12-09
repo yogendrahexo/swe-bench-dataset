@@ -1,0 +1,9 @@
+Add interp method for modelchain aoi model.
+I would like to simulate the effect of different IAM functions on performance. Pvlib already has an `interp` method for the iam_loss function. However, it is not possible to use `interp` within model chain. Can we add this feature?
+
+
+Hints:
+nan
+
+Created at: 2023-08-12T17:27:43Z
+Version: 0.9

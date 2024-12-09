@@ -1,0 +1,103 @@
+Return codes are inconsistent
+### Search before asking
+
+- [X] I searched the [issues](https://github.com/sqlfluff/sqlfluff/issues) and found no similar issues.
+
+
+### What Happened
+
+Working on #3431 - I noticed that we're inconsistent in our return codes.
+
+In `commands.py` we call `sys.exit()` in 15 places (currently).
+
+- Twice we call `sys.exit(0)` on success, at the end of `parse` and `lint` (`fix` is a handled differently, see below). ✔️ 
+- Six times we call `sys.exit(1)` for a selection of things:
+  - Not having `cProfiler` installed.
+  - Failing to apply fixes
+  - User Errors and OSError (in `PathAndUserErrorHandler`)
+- Five times we call `sys.exit(66)` for a selection of things:
+  - User Errors (including unknown dialect or failing to load a dialect or config)
+  - If parsing failed when calling `parse`.
+- Once we use `handle_files_with_tmp_or_prs_errors` to determine the exit code (which returns 1 or 0)
+- Once we use `LintingResult.stats` to determine the exit code (which returns either 65 or 0)
+- Once we do a mixture of the above (see end of `fix`)
+
+This neither DRY, or consistent ... or helpful?
+
+### Expected Behaviour
+
+We should have consistent return codes for specific scenarios. There are up for discussion, but I would suggest:
+
+- 0 for success (obviously)
+- 1 for a fail which is error related: not having libraries installed, user errors etc...
+- 65 for a linting fail (i.e. no errors in running, but issues were found in either parsing or linting).
+- 66 for a fixing fail (i.e. we tried to fix errors but failed to do so for some reason).
+
+These would be defined as constants at the top of `commands.py`.
+
+### Observed Behaviour
+
+see above
+
+### How to reproduce
+
+see above
+
+### Dialect
+
+N/A
+
+### Version
+
+Description is as per code in #3431
+
+### Configuration
+
+-
+
+### Are you willing to work on and submit a PR to address the issue?
+
+- [X] Yes I am willing to submit a PR!
+
+### Code of Conduct
+
+- [X] I agree to follow this project's [Code of Conduct](https://github.com/sqlfluff/sqlfluff/blob/main/CODE_OF_CONDUCT.md)
+
+
+
+Hints:
+I'm happy to contribute the changes for this one, but would appreciate views on what the error codes we should align on first @barrywhart @tunetheweb 
+I'm not familiar with any widespread conventions about exit codes, except to keep them below 256.
+
+This Stack Overflow post has a lot of discussion, often self-contradictory. https://stackoverflow.com/questions/1101957/are-there-any-standard-exit-status-codes-in-linux
+
+Overall, your proposal sounds good to me.
+
+Can you also search the existing issues for any mention of exit codes? I think there may be one or two open issues, perhaps related to the behavior when "fix" finds issues but some are unfixable. Because of its multifaceted nature as a linter and fixer that is used both interactively (e.g. during pre-commit) and in batch (CICD), SQLFluff perhaps has more stringent requirements for precise exit codes than some other tools. Do you think it'd be useful to review existing (and or write some new) user documentation before starting the coding, to help get a better understanding of the various use cases?
+
+
+
+Agree with @barrywhart 's comments.
+
+Only question is why 65/66 instead of just 2/3?
+> Only question is why 65/66 instead of just 2/3?
+
+This was initially because I had read that codes 0-64 were reserved for system usage but it appears things aren't that consistent.
+
+> This Stack Overflow post has a lot of discussion, often self-contradictory...
+
+I'm wondering based on this post whether we should simplify things:
+- 0: success
+- 1: fail (on linting or fixing, but due to finding issues with code or unable to fix, no "errors")
+- 2: fail because misuse or error
+
+It's slightly less granular but a little more consistent with the bash approach (from the most recent post on that SO question):
+
+> Exit status 0: success
+> Exit status 1: "failure", as defined by the program
+> Exit status 2: command line usage error
+Cleaning up the exit codes seems sensible. How likely do we think it is to break things for users?
+Relatively unlikely I reckon - I'm not sure the existing codes are sufficiently granular to be useful right now.
+
+Created at: 2022-07-14T15:06:34Z
+Version: 1.1

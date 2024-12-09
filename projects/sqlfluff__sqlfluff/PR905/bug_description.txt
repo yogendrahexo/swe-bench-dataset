@@ -1,0 +1,9 @@
+Enhance rule L036 to put all columns on separate lines if any of them are
+The current description is ambiguous, but after discussion, we decided to update the rule and keep the description at least _similar_ to what it is currently.. See discussion on #769.
+
+
+Hints:
+FWIW I'm a +1 for this...
+
+Created at: 2021-03-28T21:22:12Z
+Version: 0.4

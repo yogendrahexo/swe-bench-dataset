@@ -1,0 +1,7 @@
+Test files that should fail before fix and pass after:
+test/utils/analysis/test_select_crawler.py::test_select_crawler_constructor[select
+test/utils/analysis/test_select_crawler.py::test_select_crawler_constructor[with
+test/utils/analysis/test_select_crawler.py::test_select_crawler_constructor[\n
+test/utils/analysis/test_select_crawler.py::test_select_crawler_nested
+
+Test files that should pass both before and after fix:

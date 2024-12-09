@@ -1,0 +1,63 @@
+Clean up and clarify sampling-like filters
+### Describe what maintenance you would like added.
+
+There was a discussion on slack on the use of sampling-like filters, i.e. `sample`, `probe`, and `interpolate`.  One issue is that it is hard to figure out when to use which filter.  The other issue is that `probe` has the opposite behavior of `sample` and `interpolate` in regards to order of operation (see below).
+
+### Links to source code.
+
+_No response_
+
+### Pseudocode or Screenshots
+
+```python
+import pyvista as pv
+
+small = pv.ImageData(dimensions=(5, 5, 5))
+large = pv.ImageData(dimensions=(10, 10, 10))
+print(small.n_points)
+print(large.n_points)
+print(small.probe(large).n_points)  # gives different result
+print(small.sample(large).n_points)
+print(small.interpolate(large).n_points)
+```
+
+
+This  gives
+
+```txt
+125
+1000
+1000
+125
+125
+```
+
+
+Hints:
+`probe` uses [vtkProbeFilter](https://vtk.org/doc/nightly/html/classvtkProbeFilter.html).  Note that `vtkCompositeDataProbeFilter` is a subclass, and adds the ability to use Composite Data as in input (only one of the two slots in the algorithm).
+
+`sample` uses [vtkResampleWithDataSet](https://vtk.org/doc/nightly/html/classvtkResampleWithDataSet.html#details).  This uses `vtkCompositeDataProbeFilter` under the hood, but also allows composite data to be used in both the source and the input.
+
+So I propose that we deprecate `probe` and only keep `sample` and `interpolate`.
+
+`imterpolate` is separate from the other two since it uses a different sampling/interpolation method. 
+The pyvista standard, at least in my experience, is that we should generally expect the shape of the mesh to be equal to the mesh on which the filter attribute is called.  That is, `mesh1.filter(mesh2)` should return a mesh closer to `mesh1`.  This also enables `inplace=True` usage when possible.
+
+So, if we were to keep `probe` we should switch the order of operation, and the deprecation/breaking change would have to be done carefully.  I still think it should be removed entirely instead as above, but wanted to lay out other options.
+> So, if we were to keep `probe` we should switch the order of operation, and the deprecation/breaking change would have to be done carefully. I still think it should be removed entirely instead as above, but wanted to lay out other options.
+
+From a design standpoint, we'd probably have to do the deprecation the same way: deprecating the old method and introducing a new one that has the right semantics. Switching the input and output is not the kind of change we should subject downstream to.
++1 to this, I've definitely been confused by it before. 
+
+> The pyvista standard, at least in my experience, is that we should generally expect the shape of the mesh to be equal to the mesh on which the filter attribute is called. 
+
++1 again
+
+> From a design standpoint, we'd probably have to do the deprecation the same way: deprecating the old method and introducing a new one that has the right semantics. Switching the input and output is not the kind of change we should subject downstream to.
+
+deprecate `probe` and introduce `eborp` 😉 
+
++1 for `eborp`
+
+Created at: 2023-07-11T11:49:13Z
+Version: 0.41

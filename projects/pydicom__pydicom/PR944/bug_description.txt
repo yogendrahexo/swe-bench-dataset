@@ -1,0 +1,188 @@
+Embedded Null character
+<!-- Instructions For Filing a Bug: https://github.com/pydicom/pydicom/blob/master/CONTRIBUTING.md#filing-bugs -->
+
+#### Description
+<!-- Example: Attribute Error thrown when printing (0x0010, 0x0020) patient Id> 0-->
+---------------------------------------------------------------------------
+KeyError                                  Traceback (most recent call last)
+~/anaconda3/lib/python3.7/site-packages/pydicom/charset.py in convert_encodings(encodings)
+    624         try:
+--> 625             py_encodings.append(python_encoding[encoding])
+    626         except KeyError:
+
+KeyError: 'ISO_IR 100\x00'
+
+During handling of the above exception, another exception occurred:
+
+ValueError                                Traceback (most recent call last)
+<ipython-input-12-605c3c3edcf4> in <module>
+      4 print(filename)
+      5 dcm = pydicom.dcmread(filename,force=True)
+----> 6 dcm = pydicom.dcmread('/home/zhuzhemin/XrayKeyPoints/data/10-31-13_11H18M20_3674972_FACE_0_SC.dcm',force=True)
+
+~/anaconda3/lib/python3.7/site-packages/pydicom/filereader.py in dcmread(fp, defer_size, stop_before_pixels, force, specific_tags)
+    848     try:
+    849         dataset = read_partial(fp, stop_when, defer_size=defer_size,
+--> 850                                force=force, specific_tags=specific_tags)
+    851     finally:
+    852         if not caller_owns_file:
+
+~/anaconda3/lib/python3.7/site-packages/pydicom/filereader.py in read_partial(fileobj, stop_when, defer_size, force, specific_tags)
+    726         dataset = read_dataset(fileobj, is_implicit_VR, is_little_endian,
+    727                                stop_when=stop_when, defer_size=defer_size,
+--> 728                                specific_tags=specific_tags)
+    729     except EOFError:
+    730         pass  # error already logged in read_dataset
+
+~/anaconda3/lib/python3.7/site-packages/pydicom/filereader.py in read_dataset(fp, is_implicit_VR, is_little_endian, bytelength, stop_when, defer_size, parent_encoding, specific_tags)
+    361     try:
+    362         while (bytelength is None) or (fp.tell() - fp_start < bytelength):
+--> 363             raw_data_element = next(de_gen)
+    364             # Read data elements. Stop on some errors, but return what was read
+    365             tag = raw_data_element.tag
+
+~/anaconda3/lib/python3.7/site-packages/pydicom/filereader.py in data_element_generator(fp, is_implicit_VR, is_little_endian, stop_when, defer_size, encoding, specific_tags)
+    203                 # Store the encoding value in the generator
+    204                 # for use with future elements (SQs)
+--> 205                 encoding = convert_encodings(encoding)
+    206 
+    207             yield RawDataElement(tag, VR, length, value, value_tell,
+
+~/anaconda3/lib/python3.7/site-packages/pydicom/charset.py in convert_encodings(encodings)
+    626         except KeyError:
+    627             py_encodings.append(
+--> 628                 _python_encoding_for_corrected_encoding(encoding))
+    629 
+    630     if len(encodings) > 1:
+
+~/anaconda3/lib/python3.7/site-packages/pydicom/charset.py in _python_encoding_for_corrected_encoding(encoding)
+    664     # fallback: assume that it is already a python encoding
+    665     try:
+--> 666         codecs.lookup(encoding)
+    667         return encoding
+    668     except LookupError:
+
+ValueError: embedded null character
+#### Steps/Code to Reproduce
+<!--
+Example:
+```py
+from io import BytesIO
+from pydicom import dcmread
+
+bytestream = b'\x02\x00\x02\x00\x55\x49\x16\x00\x31\x2e\x32\x2e\x38\x34\x30\x2e\x31' \
+             b'\x30\x30\x30\x38\x2e\x35\x2e\x31\x2e\x31\x2e\x39\x00\x02\x00\x10\x00' \
+             b'\x55\x49\x12\x00\x31\x2e\x32\x2e\x38\x34\x30\x2e\x31\x30\x30\x30\x38' \
+             b'\x2e\x31\x2e\x32\x00\x20\x20\x10\x00\x02\x00\x00\x00\x01\x00\x20\x20' \
+             b'\x20\x00\x06\x00\x00\x00\x4e\x4f\x52\x4d\x41\x4c'
+
+fp = BytesIO(bytestream)
+ds = dcmread(fp, force=True)
+
+print(ds.PatientID)
+```
+If the code is too long, feel free to put it in a public gist and link
+it in the issue: https://gist.github.com
+
+When possible use pydicom testing examples to reproduce the errors. Otherwise, provide
+an anonymous version of the data in order to replicate the errors.
+-->
+import pydicom
+dcm = pydicom.dcmread('/home/zhuzhemin/XrayKeyPoints/data/10-31-13_11H18M20_3674972_FACE_0_SC.dcm')
+
+#### Expected Results
+<!-- Please paste or describe the expected results.
+Example: No error is thrown and the name of the patient is printed.-->
+No error
+I used dcmread function in matlab to read the same file and it was ok. So it should not be the problem of the file.
+#### Actual Results
+<!-- Please paste or specifically describe the actual output or traceback.
+(Use %xmode to deactivate ipython's trace beautifier)
+Example: ```AttributeError: 'FileDataset' object has no attribute 'PatientID'```
+-->
+Error: Embedded Null character
+#### Versions
+<!--
+Please run the following snippet and paste the output below.
+import platform; print(platform.platform())
+import sys; print("Python", sys.version)
+import pydicom; print("pydicom", pydicom.__version__)
+-->
+1.3.0
+
+<!-- Thanks for contributing! -->
+
+
+
+Hints:
+Well, this is invalid DICOM, so strictly speaking this is not a bug, but we can probably just ignore the null character and change the error into a warning (if `config.enforce_valid_values` is not set).
+> Well, this is invalid DICOM, so strictly speaking this is not a bug, but we can probably just ignore the null character and change the error into a warning (if `config.enforce_valid_values` is not set).
+
+We could do that, but given that this is the first time seeing an error like this, I don't think it is worth the effort.  Instead, I think using [data_element_callback](https://pydicom.github.io/pydicom/stable/api_ref.html#pydicom.config.data_element_callback) is better suited - example of how to use in my comment [here](https://github.com/pydicom/pydicom/issues/820#issuecomment-473500989).  Not quite the same situation, but could be adapted to replace the bad value.
+I'm in favour of ignoring it with a warning/exception, its not really any different from all the other non-conformant fixes we have.
+I guess a terminating null is probably common enough carry-over from C that we could be tolerant to reading that.  I'm worried about chasing invalid DICOM endlessly, though, when there is an existing facility for people to filter any kind of invalid values out, and every extra check hits performance, if only a small amount.  Perhaps we just need to make that `util.fixer` code easier to use, maybe a `pydicom.config` setting to set characters to strip as a one-liner before reading a file.
+Yeah, I see your point... the code gets messier each time we add a workaround for another incarnation of invalid DICOM. 
+This concrete exception happens during Python encoding lookup (as a fallback to check if the encoding is already a Python encoding), where we only expect a `LookupError`. The actual fix, if we would add one, would have to happen earlier (like stripping any trailing zero byte from string values), but I'm not sure if that's worth it.
+It may be interesting to understand where this comes from, as I doubt any major DICOM library or modality would have written such a value, and if this may happen elsewhere. I would also check if dcmtk handles this - if they do, I would be more inclined to add a fix. 
+Ok, dcmdump just ignores it (I replaced the last '0' by a a zero):
+```(0008,0005) CS [ISO_IR 10 ]                             #  10, 1 SpecificCharacterSet```
+
+> I'm worried about chasing invalid DICOM endlessly, though, when there is an existing facility for people to filter any kind of invalid values out, and every extra check hits performance, if only a small amount.
+
+Fair enough. Perhaps we could update fixer (if needed) and have a 'library' of available fixes instead and make sure its all documented. That way in the future we can just add to the library instead of adding a workaround to the codebase.
+I read your answers but cannot adapt the callback to my own situation. I really do not understand how dicom is organized and parsed.  All I want is to grab the pixel array and do something. Would Appreciate if you could update the version and fix it.
+As @mrbean-bremen said, this can't currently be fixed using `config.data_element_callback` because that gets called after reading while the exception is raised during reading (because character set is special). We'd need an earlier hook if we want to go the fixer route.
+Let's try this again... quick workaround.
+```python
+import codecs
+import re
+
+from pydicom import charset
+from pydicom import dcmread
+
+def _python_encoding_for_corrected_encoding(encoding):
+    encoding = encoding.strip(' \r\t\n\0')
+
+    # standard encodings
+    patched = None
+    if re.match('^ISO[^_]IR', encoding) is not None:
+        patched = 'ISO_IR' + encoding[6:]
+    # encodings with code extensions
+    elif re.match('^(?=ISO.2022.IR.)(?!ISO 2022 IR )',
+                  encoding) is not None:
+        patched = 'ISO 2022 IR ' + encoding[12:]
+
+    if patched:
+        # handle encoding patched for common spelling errors
+        try:
+            py_encoding = python_encoding[patched]
+            charset._warn_about_invalid_encoding(encoding, patched)
+            return py_encoding
+        except KeyError:
+            charset._warn_about_invalid_encoding(encoding)
+            return default_encoding
+
+    # fallback: assume that it is already a python encoding
+    try:
+        codecs.lookup(encoding)
+        return encoding
+    except LookupError:
+        charset._warn_about_invalid_encoding(encoding)
+        return default_encoding
+
+charset._python_encoding_for_corrected_encoding = _python_encoding_for_corrected_encoding
+
+ds = dcmread(...)
+```
+Interestingly we actually do handle charset values that have trailing padding `\x00`, through `valuerep.MultiString`, what we don't do is handle values that end in more than one null (i.e. `\x00\x00`) which is the case here.
+
+We could change [this line](https://github.com/pydicom/pydicom/blob/a0300a69a1da1626caef0d9738cff29b17ce79cc/pydicom/valuerep.py#L548)
+```python
+while val.endswith(' ') or val.endswith('\x00'):
+    val = val[:-1]
+```
+Hm, that looks like an easy fix without impact - I wasn't aware of this. The only question is - should we warn in this case?
+That being said, I still think that your proposal to add a repository of available fixes is a good one, even if not applicable to this issue.
+
+Created at: 2019-09-05T18:25:50Z
+Version: 1.3

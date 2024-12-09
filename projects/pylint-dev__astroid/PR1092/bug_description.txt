@@ -1,0 +1,44 @@
+Yield self is inferred to be of a mistaken type 
+### Steps to reproduce
+
+1. Run the following
+```
+import astroid
+
+
+print(list(astroid.parse('''
+import contextlib
+
+class A:
+    @contextlib.contextmanager
+    def get(self):
+        yield self
+
+class B(A):
+    def play():
+        pass
+
+with B().get() as b:
+    b.play()
+''').ilookup('b')))
+```
+
+### Current behavior
+```Prints [<Instance of .A at 0x...>]```
+
+### Expected behavior
+```Prints [<Instance of .B at 0x...>]```
+
+
+### `python -c "from astroid import __pkginfo__; print(__pkginfo__.version)"` output
+2.6.2
+
+
+Hints:
+Possible duplicate of #1008 
+This problem is due to the fact `_infer_context_manager` takes caller function, using its current context, instead of the original callers context. This may be fixed for example by adding data to `Generator` instance, by `infer_call_result` that signifies its possible value types.
+
+I'm not familiar with the codebase, it seems to me that that this is not the correct approach, but, the correct approach is to pass this data inside the `context` structure. But it's not clear to me how to do that.
+
+Created at: 2021-07-10T10:44:32Z
+Version: 2.6

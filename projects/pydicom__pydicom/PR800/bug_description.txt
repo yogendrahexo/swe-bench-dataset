@@ -1,0 +1,39 @@
+The function generate_uid() generates non-conforming “2.25 .” DICOM UIDs
+<!-- Instructions For Filing a Bug: https://github.com/pydicom/pydicom/blob/master/CONTRIBUTING.md#filing-bugs -->
+
+#### Description
+It seems there was already a discussion about this function in the past (#125), but the current implementation generates non-conforming DICOM UIDs when called with prefix ‘none’ to trigger that the function generate_uid() should generate a UUID derived UID.
+
+The DICOM Standard requires (see DICOM PS 3.5, B.2 that when a UUID derived UID is constructed it should be in the format “2.25.” + uuid(in its decimal representation string representation)
+For example a UUID of f81d4fae-7dec-11d0-a765-00a0c91e6bf6 should become 2.25.329800735698586629295641978511506172918
+
+The current implementation extends the uuid part to the remaining 59 characters. By not following the DICOM formatting rule, receiving systems that are processing DICOM instances created with this library are not capable of converting the generated “2.25” UID back to a UUID. Due to the extra sha512 operation on the UUID, the variant and version info of the UUID are also lost.
+
+#### Steps/Code to Reproduce
+- call generate_uid() to generate a "2.25." DICOM UID
+
+#### Expected Results
+A conforming unique DICOM UID is returned.
+
+#### Actual Results
+Non conforming UID is returned.
+
+
+Hints:
+Thanks for pointing this out - I wasn't aware of that section of the standard.  Do you know of a solution that respects the privacy issues pointed out in #125? 
+
+> By not following the DICOM formatting rule, receiving systems that are processing DICOM instances created with this library are not capable of converting the generated “2.25” UID back to a UUID
+
+Why would it be necessary for the receiving software to generate a "real UUID" from this (and therefore the variant and the version)?  Just curious, as if we want to be standard compliant it doesn't really matter.
+
+
+
+I think the solution proposed by @cancan101 in #125 to use the uuid v4 algorithm is fine. The uuid v1 algorithm leaks the MAC address. The open source dcm4che (Java) implementation for example also uses the uuid v4 algorithm, the two C# implementation I known of use the .NET Guid.NewGuid() method, which will also returns v4 uuids. 
+
+DICOM is all about interoperability, there may be receiving systems that (implicitly) depend on it. A Level 2 (Full) C-STORE SCP may, (but is not required) validate the attributes of an incoming SOP instance. Personally, I have never encountered a DICOM system that had trouble with it, most systems just threat a UID as 64 bytes and are happy with it as long as it is unique.
+
+Possible (performance) scenario
+Large DICOM archives need to maintain a relational database to maintain which images are stored in the system. To ensure data integrity, these systems put often a constraint on the uniqueness of the SOP Instance UID column. Most DBMS systems will create a non-cluster index to ensure that this constraint can be met. A uuid is only 16 bytes, compared to a UID that is 64 bytes, which can make the difference of keeping the index in memory or not. Some DBMS systems have a native data type to support uuid columns. The complication is of course that these systems also need to support images with “Organizationally Derived” UIDs and this optimization only makes sense if a majority of UIDs are uuid derived UIDs.
+
+Created at: 2019-02-01T07:12:27Z
+Version: 1.2

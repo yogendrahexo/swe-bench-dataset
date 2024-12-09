@@ -1,0 +1,136 @@
+KeyError when saving a FileSet
+**Describe the bug**
+Saving a fileset that was loaded using DICOMDIR returns a Key Error.
+
+**Expected behavior**
+Fileset is saved without error
+
+**Steps To Reproduce**
+Code:
+```python
+from pydicom.fileset import FileSet
+
+fpath="DICOMDIR"
+data=FileSet(fpath)
+
+print(data)
+
+data.write(use_existing=True)
+```
+
+```
+Traceback:
+KeyError                                  
+
+Traceback (most recent call last) 
+\<ipython-input-183-effc2d1f6bc9\> in \<module\>
+      6 print(data)
+      7 
+----> 8 data.write(use_existing=True)
+
+~/anaconda3/lib/python3.7/site-packages/pydicom/fileset.py in write(self, path, use_existing, force_implicit)
+   2146                 self._write_dicomdir(f, force_implicit=force_implicit)
+   2147 
+-> 2148             self.load(p, raise_orphans=True)
+   2149 
+   2150             return
+
+~/anaconda3/lib/python3.7/site-packages/pydicom/fileset.py in load(self, ds_or_path, include_orphans, raise_orphans)
+   1641             ds = ds_or_path
+   1642         else:
+-> 1643             ds = dcmread(ds_or_path)
+   1644 
+   1645         sop_class = ds.file_meta.get("MediaStorageSOPClassUID", None)
+
+~/anaconda3/lib/python3.7/site-packages/pydicom/filereader.py in dcmread(fp, defer_size, stop_before_pixels, force, specific_tags)
+   1032             defer_size=size_in_bytes(defer_size),
+   1033             force=force,
+-> 1034             specific_tags=specific_tags,
+   1035         )
+   1036     finally:
+
+~/anaconda3/lib/python3.7/site-packages/pydicom/filereader.py in read_partial(fileobj, stop_when, defer_size, force, specific_tags)
+    885             file_meta_dataset,
+    886             is_implicit_VR,
+--> 887             is_little_endian,
+    888         )
+    889     else:
+
+~/anaconda3/lib/python3.7/site-packages/pydicom/dicomdir.py in __init__(self, filename_or_obj, dataset, preamble, file_meta, is_implicit_VR, is_little_endian)
+     94 
+     95         self.patient_records: List[Dataset] = []
+---> 96         self.parse_records()
+     97 
+     98     def parse_records(self) -> None:
+
+~/anaconda3/lib/python3.7/site-packages/pydicom/dicomdir.py in parse_records(self)
+    143                 )
+    144                 if child_offset:
+--> 145                     child = map_offset_to_record[child_offset]
+    146                     record.children = get_siblings(child, map_offset_to_record)
+    147 
+
+KeyError: 572
+```
+
+**Your environment**
+
+module       | version
+------       | -------
+platform     | Linux-4.15.0-142-generic-x86_64-with-debian-stretch-sid
+Python       | 3.7.10 (default, Feb 26 2021, 18:47:35)  [GCC 7.3.0]
+pydicom      | 2.2.2
+gdcm         | _module not found_
+jpeg_ls      | _module not found_
+numpy        | 1.19.2
+PIL          | 8.2.0
+pylibjpeg    | _module not found_
+openjpeg     | _module not found_
+libjpeg      | _module not found_
+
+
+
+Hints:
+This is going to be difficult to troubleshoot without the original DICOMDIR dataset. Could you create an anonymised version of it using the following and attach it please?
+
+```python
+from pydicom import dcmread
+
+ds = dcmread("DICOMDIR")
+for item in ds.DirectoryRecordSequence:
+    if item.DirectoryRecordType == "PATIENT":
+        item.PatientName = "X" * len(item.PatientName)
+        item.PatientID = "X" * len(item.PatientID)
+
+ds.save_as("DICOMDIR_anon", write_like_original=True)
+```
+If there are any other identifying elements in the DICOMDIR then just anonymise them using the same method of overwriting with a value of the same length.
+I can't reproduce with:
+```python
+from tempfile import TemporaryDirectory
+from pathlib import Path
+import shutil
+
+from pydicom.data import get_testdata_file
+from pydicom.fileset import FileSet
+
+
+# Copy test file set to temporary directory
+t = TemporaryDirectory()
+src = Path(get_testdata_file("DICOMDIR")).parent
+dst = Path(t.name)
+
+shutil.copyfile(src / 'DICOMDIR', dst / 'DICOMDIR')
+shutil.copytree(src / "77654033", dst / "77654033")
+shutil.copytree(src / "98892003", dst / "98892003")
+shutil.copytree(src / "98892001", dst / "98892001")
+
+# Load
+fs = FileSet(dst / "DICOMDIR")
+# Write without changes
+fs.write(use_existing=True)
+```
+I strongly suspect there's a bad offset being written in your DICOMDIR for some reason, but without seeing the original I can't really do much.
+
+Created at: 2022-02-11T01:14:16Z
+Version: 2.2

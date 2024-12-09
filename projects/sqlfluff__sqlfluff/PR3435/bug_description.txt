@@ -1,0 +1,82 @@
+L027: outer-level table not found in WHERE clause sub-select
+### Search before asking
+
+- [X] I searched the [issues](https://github.com/sqlfluff/sqlfluff/issues) and found no similar issues.
+
+
+### What Happened
+
+Outer-level table/view referenced in sub-select inside `WHERE` clause is not being detected.
+
+This error seems to only occur when the sub-select contains joins.
+
+### Expected Behaviour
+
+No error
+
+### Observed Behaviour
+
+```
+L:   7 | P:  32 | L027 | Qualified reference 'my_table.kind' not found in
+                       | available tables/view aliases ['other_table',
+                       | 'mapping_table'] in select with more than one referenced
+                       | table/view.
+```
+
+### How to reproduce
+
+```sql
+SELECT my_col
+FROM my_table
+WHERE EXISTS (
+    SELECT 1
+    FROM other_table
+    INNER JOIN mapping_table ON (mapping_table.other_fk = other_table.id_pk)
+    WHERE mapping_table.kind = my_table.kind
+);
+```
+
+### Dialect
+
+postgres
+
+### Version
+
+sqlfluff, version 0.12.0
+
+### Configuration
+
+```
+[sqlfluff]
+nocolor = True
+dialect = postgres
+```
+
+### Are you willing to work on and submit a PR to address the issue?
+
+- [ ] Yes I am willing to submit a PR!
+
+### Code of Conduct
+
+- [X] I agree to follow this project's [Code of Conduct](https://github.com/sqlfluff/sqlfluff/blob/main/CODE_OF_CONDUCT.md)
+
+
+
+Hints:
+Does L027 use `SelectCrawler`? This sounds like an issue where it may be helpful.
+
+Related: Rules that use `SelectCrawler` may be good candidates to benefit from setting `recurse_into` to `False`. (Setting the flag is just a start. This also requires reworking the rule code, hopefully no more than 1-2 hours of work.)
+Answering my own question: It does not seem to use `SelectCrawler`. Rules that currently use it:
+* L025
+* L026
+* L044
+* L045
+
+From a quick look at the YML test files for each of these rules, I suggest L044 would be the best one to review in terms of handling similar requirements. Look for test cases that mention "subquery".
+I think a very similar fix to that implemented in this [PR for L028](https://github.com/sqlfluff/sqlfluff/pull/3156) will also work here. In particular, notice the code that looks at `query.parent` to find tables that are "visible" to a particular query.
+
+https://github.com/sqlfluff/sqlfluff/blob/main/src/sqlfluff/rules/L028.py#L108L114
+Related to #3380, possibly duplicate
+
+Created at: 2022-06-07T18:47:03Z
+Version: 0.13
